@@ -2,29 +2,25 @@ receivers:
   otlp:
     protocols:
       grpc:
-        endpoint: otel-collector:4317
-  otlp/2:
-    protocols:
-      grpc:
-        endpoint: otel-collector:55680
-  # docker_stats:
-  #   endpoint: unix:///var/run/docker.sock
-  #   collection_interval: 30s
-  #   timeout: 10s
-  #   api_version: "1.45"
-  #   metrics:
-  #     container.uptime:
-  #       enabled: true
-  #     container.restarts:
-  #       enabled: true
-  #     container.network.io.usage.rx_errors:
-  #       enabled: true
-  #     container.network.io.usage.tx_errors:
-  #       enabled: true
-  #     container.network.io.usage.rx_packets:
-  #       enabled: true
-  #     container.network.io.usage.tx_packets:
-  #       enabled: true
+      http:
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 30s
+    timeout: 10s
+    api_version: "1.25"
+    metrics:
+      container.uptime:
+        enabled: true
+      container.restarts:
+        enabled: true
+      container.network.io.usage.rx_errors:
+        enabled: true
+      container.network.io.usage.tx_errors:
+        enabled: true
+      container.network.io.usage.rx_packets:
+        enabled: true
+      container.network.io.usage.tx_packets:
+        enabled: true
   postgresql:
     endpoint: postgresql:5432
     transport: tcp
@@ -32,33 +28,12 @@ receivers:
     password: "activesec123"
     tls:
       insecure: true
-  httpcheck:
-    targets:
-      - endpoint: http://prometheus:9090
-        method: GET
-  prometheus/internal:
-    config:
-      scrape_configs:
-      - job_name: 'otel-collector'
-        scrape_interval: 10s
-        static_configs:
-        - targets: ['0.0.0.0:8888']
-        metric_relabel_configs:
-          - source_labels: [ __name__ ]
-            regex: 'otelcol_rpc_.*'
-            action: drop
-          - source_labels: [ __name__ ]
-            regex: 'otelcol_http_.*'
-            action: drop
-          - source_labels: [ __name__ ]
-            regex: 'otelcol_processor_batch_.*'
-            action: drop
 
 exporters:
   otlp/jaeger: # Jaeger supports OTLP directly. The default port for OTLP/gRPC is 4317
-   endpoint: jaeger-all-in-one:4317
-   tls:
-     insecure: true
+    endpoint: jaeger-all-in-one:4317
+    tls:
+      insecure: true
   otlphttp:
     endpoint: "https://pdx-sls-agent-api.saas.appdynamics.com"
     headers: {"x-api-key": "6e7c44d9f5c6e1a2bffccddc9edef96af34fc02e3094eab89641138386bfc4d4"}
@@ -68,7 +43,7 @@ exporters:
     send_timestamps: true
     metric_expiration: 180m
     resource_to_telemetry_conversion:
-      enabled: true  
+      enabled: true
   splunk_hec:
     # Splunk HTTP Event Collector token.
     token: "d13540c7-6a9c-4ceb-a190-988135297b7a"
@@ -91,7 +66,7 @@ exporters:
       insecure_skip_verify: true
       # Path to the CA cert to verify the server being connected to.
     # Application name is used to track telemetry information for Splunk App's using HEC by App name.
-    splunk_app_name: "OpenTelemetry-Collector Splunk Exporter 2"
+    splunk_app_name: "OpenTelemetry-Collector Splunk Exporter"
     # Application version is used to track telemetry information for Splunk App's using HEC by App version.
     splunk_app_version: "v0.0.1"
     heartbeat:
@@ -104,22 +79,6 @@ exporters:
       extra_attributes:
         dataset_name: SplunkCloudBeaverStack
         custom_key: custom_value
-  signalfx:
-    access_token: Al6uYakep8ycMLPTLyXdfw
-    access_token_passthrough: true
-    headers:
-      added-entry: "added value"
-      dot.test: test
-    realm: us1
-    timeout: 5s
-    max_idle_conns: 80
-  sapm:
-    access_token: Al6uYakep8ycMLPTLyXdfw
-    access_token_passthrough: true
-    endpoint: https://ingest.us1.signalfx.com/v2/trace
-    max_connections: 100
-    num_workers: 2
-    #log_detailed_response: true
 
 processors:
   resource:
@@ -138,7 +97,7 @@ processors:
       value: Demo3
     - key: service.name
       action: upsert
-      value: OT-Demo2
+      value: OT-Demo-docker
   batch:
     timeout: 30s
     send_batch_size: 90
@@ -154,21 +113,16 @@ extensions:
 service:
   extensions: [health_check]
   pipelines:
-    traces:
-      receivers: [otlp,otlp/2]
-      processors: [resource,batch]
-      exporters: [otlphttp,splunk_hec,sapm,otlp/jaeger]
     metrics:
-      receivers: [postgresql,httpcheck]
+      receivers: [docker_stats,postgresql]
       processors: [resourcedetection,batch]
-      exporters: [splunk_hec,prometheus,signalfx]
-    # logs:
-    #   receivers: [docker_stats]
-    #   processors: [resource,resourcedetection,batch]
-    #   exporters: [otlp/jaeger,otlphttp]
-    metrics/internal:
-      receivers: [prometheus/internal]
-      processors: [batch, resourcedetection]
-      exporters: [splunk_hec,signalfx,prometheus]
-
+      exporters: [splunk_hec,prometheus]
+#    traces:
+#      receivers: [docker_stats]
+#      processors: [resource,resourcedetection,batch]
+#      exporters: [otlp/jaeger,otlphttp]
+#    logs:
+#      receivers: [docker_stats]
+#      processors: [resource,resourcedetection,batch]
+#      exporters: [otlp/jaeger,otlphttp]
 

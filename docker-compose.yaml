@@ -4,8 +4,8 @@ services:
     zookeeper:
         image: quay.io/strimzi/kafka:0.41.0-kafka-3.7.0
         command: [
-        "sh", "-c",
-        "bin/zookeeper-server-start.sh config/zookeeper.properties"
+            "sh", "-c",
+            "bin/zookeeper-server-start.sh config/zookeeper.properties"
         ]
         ports:
         - "2181:2181"
@@ -17,8 +17,8 @@ services:
     kafka:
         image: quay.io/strimzi/kafka:0.41.0-kafka-3.7.0
         command: [
-        "sh", "-c",
-        "bin/kafka-server-start.sh config/server.properties --override listeners=$${KAFKA_LISTENERS} --override advertised.listeners=$${KAFKA_ADVERTISED_LISTENERS} --override zookeeper.connect=$${KAFKA_ZOOKEEPER_CONNECT}"
+            "sh", "-c",
+            "bin/kafka-server-start.sh config/server.properties --override listeners=$${KAFKA_LISTENERS} --override advertised.listeners=$${KAFKA_ADVERTISED_LISTENERS} --override zookeeper.connect=$${KAFKA_ZOOKEEPER_CONNECT}"
         ]
         depends_on:
             - zookeeper
@@ -59,16 +59,43 @@ services:
             - activesec-network
     # Collector
     otel-collector:
-        image: otel/opentelemetry-collector:latest
+        #image: otel/opentelemetry-collector:latest
+        image: otel/opentelemetry-collector-contrib:latest
+        #image: appdynamics/appdynamics-cloud-otel-collector:latest
         command: [ "--config=/etc/otel-collector-config.yaml" ]
+        privileged: true
         volumes:
             - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+            - //var/run/docker.sock:/var/run/docker.sock
         ports:
             - "13133:13133" # Health_check extension
             - "4317:4317"   # OTLP gRPC receiver
             - "55680:55680" # OTLP gRPC receiver alternative port
+            - 9091:9091
         depends_on:
             - jaeger-all-in-one
+        networks:
+            - activesec-network
+#    otel-collector-contrib:
+#        image: otel/opentelemetry-collector-contrib:latest
+#        #image: appdynamics/appdynamics-cloud-otel-collector:latest
+#        command: [ "--config=/etc/otel-collector-config.yaml" ]
+#        privileged: true
+#        ports:
+#            - 9091:9091
+#        volumes:
+#            - ./otel-collector-contrib-config.yaml:/etc/otel-collector-config.yaml
+#            - //var/run/docker.sock:/var/run/docker.sock
+#        depends_on:
+#            - jaeger-all-in-one
+#        networks:
+#            - activesec-network
+    prometheus:
+        image: prom/prometheus
+        volumes:
+            - ./prometheus.yml:/etc/prometheus/prometheus.yml
+        ports:
+            - 9090:9090
         networks:
             - activesec-network
 
